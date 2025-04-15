@@ -4,6 +4,7 @@ import django
 import mysql.connector
 import time
 from datetime import datetime
+from django.db.models import Model
 
 # Add the project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,7 +26,7 @@ from mlbdata.models import (
 
 def connect_to_original_db():
     return mysql.connector.connect(
-        host="awtpi-server", user="awtpi", password="password", database="mlb_original"
+        host="100.77.203.81", user="awtpi", password="password", database="mlb_original"
     )
 
 
@@ -63,24 +64,58 @@ def add_positions(players: dict[str, Player]):
     """
     )
 
+    db_players = {p.player_id: p for p in Player.objects.all()}
+    for player_id, player_value in players.items():
+        print(f"Player ID: {player_id}, Player Value: {player_value}")
+        if player_value.player_id in db_players:
+            players[player_id] = db_players[player_value.player_id]
+
     positions_to_create = []
-    for row in cursor.fetchall():
+
+    position_data = cursor.fetchall()
+
+    position_dict = {pos.position_code: pos for pos in db_positions}
+
+    for row in position_data:
         pid = row["playerID"]
         pos_code = row["POS"]
 
-        if pos_code not in positions:
-            print(f"Skipping position {pos_code} for player {pid}")
+        if (
+            pos_code not in positions
+            or pid not in players
+            or pos_code not in position_dict
+        ):
             continue
 
-        p = players.get(pid)
-        if p is None:
-            print(f"Player {pid} not found in players dictionary")
-            continue
-
-        position_obj = db_positions.get(position_code=pos_code)
-        positions_to_create.append((p, position_obj))
+        positions_to_create.append((players[pid], position_dict[pos_code]))
 
     print(f"Adding {len(positions_to_create)} positions to {len(players)} players")
+
+    # Create position assignments using bulk_create with batches of 1000
+
+    # Get the through model for the many-to-many relationship
+    player_position_model = Player.positions.through
+
+    # Batch process the positions
+    batch_size = 1000
+    position_batch = []
+
+    for player, position in positions_to_create:
+        position_batch.append(player_position_model(player=player, position=position))
+
+        if len(position_batch) >= batch_size:
+            player_position_model.objects.bulk_create(
+                position_batch, ignore_conflicts=True
+            )
+            print(f"Added batch of {len(position_batch)} player-position relationships")
+            position_batch = []
+
+    # Create any remaining positions
+    if position_batch:
+        player_position_model.objects.bulk_create(position_batch, ignore_conflicts=True)
+        print(
+            f"Added final batch of {len(position_batch)} player-position relationships"
+        )
 
     cursor.close()
     conn.close()
@@ -143,29 +178,34 @@ def retrieve_players():
         )
 
         players_to_create.append(
-            Player(
-                name=first_name + " " + last_name,
-                given_name=row["nameGiven"],
-                birthdate=birth_day,
-                deathdate=death_day,
-                batting_hand=row["bats"],
-                throwing_hand=row["throws"],
-                birth_city=row["birthCity"],
-                birth_state=row["birthState"],
-                birth_country=row["birthCountry"],
-                first_game=first_game,
-                last_game=last_game,
+            (
+                pid,
+                Player(
+                    name=first_name + " " + last_name,
+                    given_name=row["nameGiven"],
+                    birthdate=birth_day,
+                    deathdate=death_day,
+                    batting_hand=row["bats"],
+                    throwing_hand=row["throws"],
+                    birth_city=row["birthCity"],
+                    birth_state=row["birthState"],
+                    birth_country=row["birthCountry"],
+                    first_game=first_game,
+                    last_game=last_game,
+                ),
             )
         )
-        players[pid] = players_to_create[-1]
-        print(f"Created player: {players_to_create[-1].name}")
         if len(players_to_create) >= 1000:
-            Player.objects.bulk_create(players_to_create)
+            Player.objects.bulk_create([t[1] for t in players_to_create])
+            new_objects = sorted(list(Player.objects.all()), key=lambda x: x.player_id, reverse=True)[-1000:]
+            print(f"Added batch of {len(new_objects)} players")
+            for db_player, (player_id, _) in zip(new_objects, players_to_create):
+                players[player_id] = db_player
             players_to_create = []
 
     # Create any remaining players
     if players_to_create:
-        Player.objects.bulk_create(players_to_create)
+        Player.objects.bulk_create([t[1] for t in players_to_create])
 
     cursor.close()
     conn.close()
@@ -371,7 +411,7 @@ if __name__ == "__main__":
     start_time = time.time()
 
     players = retrieve_players()
-    add_positions(players)
+    # add_positions(players)
     # add_seasons(players)
     # add_batting_stats(players)
     # add_fielding_stats(players)
