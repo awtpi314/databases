@@ -58,21 +58,13 @@ def add_positions(players):
     cursor = conn.cursor(dictionary=True)
 
     # Query to get positions for each player
-    cursor.execute(
-        """
-        SELECT DISTINCT playerID, POS 
-        FROM fielding 
-        WHERE playerID IN (%s)
-    """
-        % ",".join(["%s"] * len(players)),
-        list(players.keys()),
-    )
+    cursor.callproc("getPositions", list(players.keys()))
 
     needed_positions: set[tuple[Player, Position]] = set()
     db_positions = {p.position_code: p for p in Position.objects.all()}
     player_positions_type = Player.positions.through
     # Add positions to each player
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         player = players[row["playerID"]]
         position = db_positions.get(row["POS"])
         needed_positions.add((player, position))
@@ -107,33 +99,12 @@ def retrieve_players():
 
     players = {}
     # Query to get all players
-    cursor.execute(
-        """
-        SELECT  playerId, 
-                nameFirst, 
-                nameLast, 
-                nameGiven, 
-                birthDay, 
-                birthMonth, 
-                birthYear, 
-                deathDay, 
-                deathMonth, 
-                deathYear, 
-                bats, 
-                throws, 
-                birthCity, 
-                birthState, 
-                birthCountry, 
-                debut, 
-                finalGame 
-         FROM people
-    """
-    )
+    cursor.callproc("getPlayers")
 
     player_objects = []
 
     # Iterate through results and create Player instances
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         # Convert string dates to Python date objects, handling NULL values
         pid = row["playerId"]
         first_name = row["nameFirst"]
@@ -228,47 +199,11 @@ def retrieve_teams():
 
     teams = {}
     # Query to get all teams
-    cursor.execute(
-        """
-            with founded_year as (
-                select 
-                    teamID,
-                    min(yearID) as yearFounded
-                from 
-                    teams
-                group by
-                    teamID
-            ),
-            most_recent_info as (
-                select 
-                    t.teamID,
-                    t.name,
-                    t.lgID,
-                    t.yearID,
-                    row_number() over (partition by t.teamID order by t.yearID desc) as rn
-                from 
-                    teams t
-            )
-            select 
-                m.teamID,
-                m.name as most_recent_name,
-                m.lgID as most_recent_league,
-                f.yearFounded as year_founded,
-                m.yearID as most_recent_year
-            from 
-                most_recent_info m
-            join 
-                founded_year f on m.teamID = f.teamID
-            where 
-                m.rn = 1
-            order by 
-                m.teamID;
-    """
-    )
+    cursor.callproc("getTeams")
 
     teams_objects = []
 
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         team_id = row["teamID"]
         name = row["most_recent_name"]
         league = row["most_recent_league"]
@@ -317,21 +252,11 @@ def add_seasons(players, teams: dict):
     cursor = conn.cursor(dictionary=True)
 
     # Combined query to get games played and salary data in one go
-    cursor.execute(
-        """
-        SELECT b.playerID, b.yearID, b.teamID, b.lgID,
-               SUM(b.G) as gamesPlayed,
-               SUM(s.salary) as totalSalary
-        FROM batting b
-        LEFT JOIN salaries s ON b.playerID = s.playerID 
-            AND b.yearID = s.yearID
-        GROUP BY b.playerID, b.yearID, b.teamID, b.lgID
-    """
-    )
+    cursor.callproc("getPlayerSeasons")
 
     print("Creating player seasons...")
     seasons: dict[tuple, PlayerSeason] = {}
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         pid = row["playerID"]
         yid = row["yearID"]
         tid = row["teamID"]
@@ -361,23 +286,10 @@ def add_seasons(players, teams: dict):
         PlayerSeason.objects.bulk_create(batch)
         print(f"Bulk created {len(batch)} player seasons")
 
-    cursor.execute(
-        """
-            select
-              teamID,
-              yearID, 
-              sum(G) as "games",
-              sum(W) as "wins",
-              sum(L) as "losses",
-              sum(teamRank) as "rank",
-              sum(attendance) as "attendance"
-            from teams
-            group by teamID, yearID
-    """
-    )
+    cursor.callproc("getTeamSeasons")
 
     team_seasons: list[TeamSeason] = []
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         teamID = row["teamID"]
         yearID = row["yearID"]
         if teamID not in teams:
@@ -415,25 +327,7 @@ def add_batting_stats(players):
     cursor = conn.cursor(dictionary=True)  # Returns results as dictionaries
 
     # Query to get discover info each player season
-    cursor.execute(
-        """
-        select playerID, yearID,
-        sum(AB) as atBats, 
-        sum(H) as hits, 
-        sum(2B) as doubles,
-        sum(3B) as triples, 
-        sum(HR) as homeRuns,
-        sum(RBI) as runsBattedIn, 
-        sum(SO) as strikeouts,
-        sum(BB) as walks, 
-        sum(HBP) as hitByPitch, 
-        sum(IBB) as intentionalWalks, 
-        sum(SB) as steals, 
-        sum(CS) as stealsAttempted
-        from batting
-        group by playerID, yearID
-    """
-    )
+    cursor.callproc("addBattingStats")
 
     print("Getting player seasons...")
     player_seasons = PlayerSeason.objects.select_related("player").all()
@@ -447,7 +341,7 @@ def add_batting_stats(players):
     }
     print("Mapped player seasons")
     needed_stats = []
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         pid = row["playerID"]
         yid = row["yearID"]
         if pid not in players:
@@ -493,20 +387,7 @@ def add_fielding_stats(players):
     cursor = conn.cursor(dictionary=True)
 
     # Combined query for both fielding and catching stats
-    cursor.execute(
-        """
-        SELECT playerID, yearID,
-               SUM(E) as errors,
-               SUM(PO) as putOuts,
-               SUM(CASE WHEN POS = 'C' THEN PB ELSE 0 END) as passedBalls,
-               SUM(CASE WHEN POS = 'C' THEN WP ELSE 0 END) as wildPitches,
-               SUM(CASE WHEN POS = 'C' THEN SB ELSE 0 END) as stealsAllowed,
-               SUM(CASE WHEN POS = 'C' THEN CS ELSE 0 END) as stealsCaught,
-               MAX(CASE WHEN POS = 'C' THEN 1 ELSE 0 END) as isCatcher
-        FROM fielding
-        GROUP BY playerID, yearID
-    """
-    )
+    cursor.callproc("addFieldingStats")
 
     print("Getting player seasons...")
     player_seasons = PlayerSeason.objects.select_related("player").all()
@@ -523,7 +404,7 @@ def add_fielding_stats(players):
     fielding_stats = []
     catching_stats = []
 
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         pid = row["playerID"]
         yid = row["yearID"]
         if pid not in players:
@@ -581,24 +462,7 @@ def add_pitching_stats(players):
     cursor = conn.cursor(dictionary=True)
 
     # Query to get discover info each player season
-    cursor.execute(
-        """
-        select playerID, yearID,
-                sum(IPOuts) as outsPitched,
-                sum(ER) as earnedRunsAllowed, 
-                sum(HR) as homeRunsAllowed, 
-                sum(SO) as strikeouts, 
-                sum(BB) as walks, 
-                sum(W) as wins, 
-                sum(L) as losses, 
-                sum(WP) as wildPitches, 
-                sum(BFP) as battersFaced, 
-                sum(HBP) as hitBatters, 
-                sum(SV) as saves
-        from pitching 
-        group by playerID, yearID
-    """
-    )
+    cursor.callproc("addPitchingStats")
 
     print("Getting player seasons...")
     player_seasons = PlayerSeason.objects.select_related("player").all()
@@ -614,7 +478,7 @@ def add_pitching_stats(players):
 
     pitching_stats = []
 
-    for row in cursor.fetchall():
+    for row in next(cursor.stored_results()):
         pid = row["playerID"]
         yid = row["yearID"]
 
