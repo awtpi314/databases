@@ -58,7 +58,9 @@ def add_positions(players):
     cursor = conn.cursor(dictionary=True)
 
     # Query to get positions for each player
-    cursor.callproc("getPositions", list(players.keys()))
+    cursor.callproc(
+        "getPositions", [",".join([f'"{k}"' for k in list(players.keys())])]
+    )
 
     needed_positions: set[tuple[Player, Position]] = set()
     db_positions = {p.position_code: p for p in Position.objects.all()}
@@ -212,6 +214,7 @@ def retrieve_teams():
 
         # Create a new Team instance
         team = Team(
+            old_id=team_id,
             name=name,
             league=league,
             year_founded=year_founded,
@@ -232,27 +235,52 @@ def retrieve_teams():
     cursor.close()
     conn.close()
 
-    db_teams = {t.name: t for t in Team.objects.all()}
-    for team_id, team in list(teams.items()):
-        team_name = teams[team_id].name
-        db_team = db_teams.get(team_name)
-        if db_team is None:
-            print(f"Warning: Team {team.name} not found in database")
-            continue
-        teams[team_id] = db_team
-        print(
-            f"Retrieved DB ID for team: {db_team.name} (ID: {db_team.id})"
-        )
-
-    return teams
+    return {t.old_id: t for t in Team.objects.all()}
 
 
 def add_seasons(players, teams: dict):
     conn = connect_to_original_db()
     cursor = conn.cursor(dictionary=True)
 
+    cursor.callproc("getTeamSeasons")
+
+    team_seasons: list[TeamSeason] = []
+    for row in next(cursor.stored_results()):
+        teamID = row["teamID"]
+        yearID = row["yearID"]
+        if teamID not in teams:
+            continue
+        t = teams[teamID]
+
+        if (yearID, teamID) not in team_seasons:
+            new_season = TeamSeason(
+                team=t,
+                year=yearID,
+                wins=row["wins"],
+                losses=row["losses"],
+                games_played=row["games"],
+                rank=row["rank"],
+                total_attendance=row["attendance"],
+            )
+            team_seasons.append(new_season)
+
+        if len(team_seasons) >= 1000:
+            TeamSeason.objects.bulk_create(team_seasons)
+            print(f"Bulk created {len(team_seasons)} team seasons")
+            team_seasons = []
+
+    if team_seasons:
+        TeamSeason.objects.bulk_create(team_seasons)
+        print(f"Bulk created final {len(team_seasons)} team seasons")
+
+    team_seasons_dict = {
+        (t.year, t.team.old_id): t for t in TeamSeason.objects.all() if t.team.old_id
+    }
+
     # Combined query to get games played and salary data in one go
     cursor.callproc("getPlayerSeasons")
+
+    player_team_seasons: list[tuple[str, str, str]] = []
 
     print("Creating player seasons...")
     seasons: dict[tuple, PlayerSeason] = {}
@@ -264,6 +292,8 @@ def add_seasons(players, teams: dict):
         if pid not in players:
             continue
         p = players[pid]
+
+        player_team_seasons.append((pid, yid, tid))
 
         if (yid, pid) not in seasons:
             seasons[(yid, pid)] = PlayerSeason(
@@ -286,37 +316,19 @@ def add_seasons(players, teams: dict):
         PlayerSeason.objects.bulk_create(batch)
         print(f"Bulk created {len(batch)} player seasons")
 
-    cursor.callproc("getTeamSeasons")
+    player_team_season_model = Player.team_seasons.through
 
-    team_seasons: list[TeamSeason] = []
-    for row in next(cursor.stored_results()):
-        teamID = row["teamID"]
-        yearID = row["yearID"]
-        if teamID not in teams:
-            continue
-        t = teams[teamID]
-
-        if (yearID, teamID) not in team_seasons:
-            team_seasons.append(
-                TeamSeason(
-                    team=t,
-                    year=yearID,
-                    wins=row["wins"],
-                    losses=row["losses"],
-                    games_played=row["games"],
-                    rank=row["rank"],
-                    total_attendance=row["attendance"],
+    for i in range(0, len(player_team_seasons), 1000):
+        batch = player_team_seasons[i : i + 1000]
+        player_team_season_model.objects.bulk_create(
+            [
+                player_team_season_model(
+                    player_id=players[pts[0]].player_id,
+                    teamseason_id=team_seasons_dict[(pts[1], pts[2])].id,
                 )
-            )
-          
-        if len(team_seasons) >= 1000:
-            TeamSeason.objects.bulk_create(team_seasons)
-            print(f"Bulk created {len(team_seasons)} team seasons")
-            team_seasons = []
-
-    if team_seasons:
-        TeamSeason.objects.bulk_create(team_seasons)
-        print(f"Bulk created final {len(team_seasons)} team seasons")
+                for pts in batch
+            ]
+        )
 
     cursor.close()
     conn.close()
