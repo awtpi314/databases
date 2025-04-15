@@ -23,6 +23,7 @@ from mlbdata.models import (
     PitchingStats,
     CatchingStats,
     Team,
+    TeamSeason,
 )
 
 
@@ -229,24 +230,89 @@ def retrieve_teams():
     # Query to get all teams
     cursor.execute(
         """
-        select
-          t.teamID as "team_id",
-          (select franchName from teamFranchises tf2 where max(t.franchID) = tf2.franchID limit 1) as "team_name",
-          max(t.lgID) as "league",
-          max(t.yearID) as "most_recent_year",
-          min(t.yearID) as "year_founded"
-        from teams t
-        group by t.teamID;
+            with founded_year as (
+                select 
+                    teamID,
+                    min(yearID) as yearFounded
+                from 
+                    teams
+                group by
+                    teamID
+            ),
+            most_recent_info as (
+                select 
+                    t.teamID,
+                    t.name,
+                    t.lgID,
+                    t.yearID,
+                    row_number() over (partition by t.teamID order by t.yearID desc) as rn
+                from 
+                    teams t
+            )
+            select 
+                m.teamID,
+                m.name as most_recent_name,
+                m.lgID as most_recent_league,
+                f.yearFounded as year_founded,
+                m.yearID as most_recent_year
+            from 
+                most_recent_info m
+            join 
+                founded_year f on m.teamID = f.teamID
+            where 
+                m.rn = 1
+            order by 
+                m.teamID;
     """
     )
+
+    teams_objects = []
+
+    for row in cursor.fetchall():
+        team_id = row["teamID"]
+        name = row["most_recent_name"]
+        league = row["most_recent_league"]
+        year_founded = row["year_founded"]
+        most_recent_year = row["most_recent_year"]
+
+        # Create a new Team instance
+        team = Team(
+            name=name,
+            league=league,
+            year_founded=year_founded,
+            most_recent_year=most_recent_year,
+        )
+        teams_objects.append(team)
+        teams[team_id] = team
+
+        if len(teams_objects) >= 1000:
+            Team.objects.bulk_create(teams_objects)
+            print(f"Bulk created {len(teams_objects)} teams")
+            teams_objects = []
+
+    if teams_objects:
+        Team.objects.bulk_create(teams_objects)
+        print(f"Bulk created final {len(teams_objects)} teams")
 
     cursor.close()
     conn.close()
 
+    db_teams = {t.name: t for t in Team.objects.all()}
+    for team_id, team in list(teams.items()):
+        team_name = teams[team_id].name
+        db_team = db_teams.get(team_name)
+        if db_team is None:
+            print(f"Warning: Team {team.name} not found in database")
+            continue
+        teams[team_id] = db_team
+        print(
+            f"Retrieved DB ID for team: {db_team.name} (ID: {db_team.id})"
+        )
+
     return teams
 
 
-def add_seasons(players):
+def add_seasons(players, teams: dict):
     conn = connect_to_original_db()
     cursor = conn.cursor(dictionary=True)
 
@@ -274,7 +340,7 @@ def add_seasons(players):
             continue
         p = players[pid]
 
-        if yid not in seasons:
+        if (yid, pid) not in seasons:
             seasons[(yid, pid)] = PlayerSeason(
                 player=p,
                 year=yid,
@@ -295,7 +361,50 @@ def add_seasons(players):
         PlayerSeason.objects.bulk_create(batch)
         print(f"Bulk created {len(batch)} player seasons")
 
-        # TODOAdd team_seasons
+    cursor.execute(
+        """
+            select
+              teamID,
+              yearID, 
+              sum(G) as "games",
+              sum(W) as "wins",
+              sum(L) as "losses",
+              sum(teamRank) as "rank",
+              sum(attendance) as "attendance"
+            from teams
+            group by teamID, yearID
+    """
+    )
+
+    team_seasons: list[TeamSeason] = []
+    for row in cursor.fetchall():
+        teamID = row["teamID"]
+        yearID = row["yearID"]
+        if teamID not in teams:
+            continue
+        t = teams[teamID]
+
+        if (yearID, teamID) not in team_seasons:
+            team_seasons.append(
+                TeamSeason(
+                    team=t,
+                    year=yearID,
+                    wins=row["wins"],
+                    losses=row["losses"],
+                    games_played=row["games"],
+                    rank=row["rank"],
+                    total_attendance=row["attendance"],
+                )
+            )
+          
+        if len(team_seasons) >= 1000:
+            TeamSeason.objects.bulk_create(team_seasons)
+            print(f"Bulk created {len(team_seasons)} team seasons")
+            team_seasons = []
+
+    if team_seasons:
+        TeamSeason.objects.bulk_create(team_seasons)
+        print(f"Bulk created final {len(team_seasons)} team seasons")
 
     cursor.close()
     conn.close()
@@ -551,8 +660,8 @@ if __name__ == "__main__":
     start_time = time.time()
 
     players = retrieve_players()
-    # teams = retrieve_teams()
-    add_seasons(players)
+    teams = retrieve_teams()
+    add_seasons(players, teams)
     add_batting_stats(players)
     add_fielding_stats(players)
     add_pitching_stats(players)

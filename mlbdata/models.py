@@ -111,9 +111,11 @@ class PitchingStats(models.Model):
 
 class Team(models.Model):
     id = models.AutoField(primary_key=True)
+    old_id = models.CharField(max_length=10, null=True)
     name = models.CharField(max_length=33)
-    is_active = models.BooleanField(default=True)
-    is_associated = models.BooleanField(default=True)
+    league = models.CharField(max_length=10)
+    year_founded = models.IntegerField()
+    most_recent_year = models.IntegerField()
 
 
 class TeamSeason(models.Model):
