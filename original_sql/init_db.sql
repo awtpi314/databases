@@ -1,3 +1,16 @@
+drop table if exists appearances;
+drop table if exists batting;
+drop table if exists fielding;
+drop table if exists fieldingOF;
+drop table if exists fieldingOFsplit;
+drop table if exists managers;
+drop table if exists parks;
+drop table if exists people;
+drop table if exists pitching;
+drop table if exists salaries;
+drop table if exists teamFranchises;
+drop table if exists teams;
+
 CREATE TABLE appearances(
   yearID INTEGER NOT NULL,
   teamID VARCHAR(3) NOT NULL,
