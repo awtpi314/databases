@@ -1,10 +1,11 @@
+from math import pi
 import os
 import sys
 import django
+from django import db
 import mysql.connector
 import time
 from datetime import datetime
-from django.db.models import Model
 
 # Add the project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,16 +22,17 @@ from mlbdata.models import (
     FieldingStats,
     PitchingStats,
     CatchingStats,
+    Team,
 )
 
 
 def connect_to_original_db():
     return mysql.connector.connect(
-        host="100.77.203.81", user="awtpi", password="password", database="mlb_original"
+        host="awtpi-server", user="awtpi", password="password", database="mlb_original"
     )
 
 
-def add_positions(players: dict[str, Player]):
+def add_positions(players):
     # First, ensure all positions exist in the new database
     positions = {
         "P": "Pitcher",
@@ -50,8 +52,6 @@ def add_positions(players: dict[str, Player]):
     for code in positions:
         Position.objects.get_or_create(position_code=code)
 
-    db_positions = Position.objects.all()
-
     # Connect to original database
     conn = connect_to_original_db()
     cursor = conn.cursor(dictionary=True)
@@ -61,61 +61,39 @@ def add_positions(players: dict[str, Player]):
         """
         SELECT DISTINCT playerID, POS 
         FROM fielding 
+        WHERE playerID IN (%s)
     """
+        % ",".join(["%s"] * len(players)),
+        list(players.keys()),
     )
 
-    db_players = {p.player_id: p for p in Player.objects.all()}
-    for player_id, player_value in players.items():
-        print(f"Player ID: {player_id}, Player Value: {player_value}")
-        if player_value.player_id in db_players:
-            players[player_id] = db_players[player_value.player_id]
+    needed_positions: set[tuple[Player, Position]] = set()
+    db_positions = {p.position_code: p for p in Position.objects.all()}
+    player_positions_type = Player.positions.through
+    # Add positions to each player
+    for row in cursor.fetchall():
+        player = players[row["playerID"]]
+        position = db_positions.get(row["POS"])
+        needed_positions.add((player, position))
 
-    positions_to_create = []
-
-    position_data = cursor.fetchall()
-
-    position_dict = {pos.position_code: pos for pos in db_positions}
-
-    for row in position_data:
-        pid = row["playerID"]
-        pos_code = row["POS"]
-
-        if (
-            pos_code not in positions
-            or pid not in players
-            or pos_code not in position_dict
-        ):
-            continue
-
-        positions_to_create.append((players[pid], position_dict[pos_code]))
-
-    print(f"Adding {len(positions_to_create)} positions to {len(players)} players")
-
-    # Create position assignments using bulk_create with batches of 1000
-
-    # Get the through model for the many-to-many relationship
-    player_position_model = Player.positions.through
-
-    # Batch process the positions
-    batch_size = 1000
-    position_batch = []
-
-    for player, position in positions_to_create:
-        position_batch.append(player_position_model(player=player, position=position))
-
-        if len(position_batch) >= batch_size:
-            player_position_model.objects.bulk_create(
-                position_batch, ignore_conflicts=True
+        if len(needed_positions) >= 1000:
+            player_positions_type.objects.bulk_create(
+                player_positions_type(
+                    player_id=player.player_id, position_id=position.position_code
+                )
+                for player, position in needed_positions
             )
-            print(f"Added batch of {len(position_batch)} player-position relationships")
-            position_batch = []
+            print(f"Bulk created {len(needed_positions)} player positions")
+            needed_positions.clear()
 
-    # Create any remaining positions
-    if position_batch:
-        player_position_model.objects.bulk_create(position_batch, ignore_conflicts=True)
-        print(
-            f"Added final batch of {len(position_batch)} player-position relationships"
+    if needed_positions:
+        player_positions_type.objects.bulk_create(
+            player_positions_type(
+                player_id=player.player_id, position_id=position.position_code
+            )
+            for player, position in needed_positions
         )
+        print(f"Bulk created final {len(needed_positions)} player positions")
 
     cursor.close()
     conn.close()
@@ -128,12 +106,33 @@ def retrieve_players():
 
     players = {}
     # Query to get all players
-    cursor.callproc("getPlayers")
+    cursor.execute(
+        """
+        SELECT  playerId, 
+                nameFirst, 
+                nameLast, 
+                nameGiven, 
+                birthDay, 
+                birthMonth, 
+                birthYear, 
+                deathDay, 
+                deathMonth, 
+                deathYear, 
+                bats, 
+                throws, 
+                birthCity, 
+                birthState, 
+                birthCountry, 
+                debut, 
+                finalGame 
+         FROM people
+    """
+    )
 
-    players_to_create = []
+    player_objects = []
 
     # Iterate through results and create Player instances
-    for row in next(cursor.stored_results()).fetchall():
+    for row in cursor.fetchall():
         # Convert string dates to Python date objects, handling NULL values
         pid = row["playerId"]
         first_name = row["nameFirst"]
@@ -177,40 +176,74 @@ def retrieve_players():
             else None
         )
 
-        players_to_create.append(
-            (
-                pid,
-                Player(
-                    name=first_name + " " + last_name,
-                    given_name=row["nameGiven"],
-                    birthdate=birth_day,
-                    deathdate=death_day,
-                    batting_hand=row["bats"],
-                    throwing_hand=row["throws"],
-                    birth_city=row["birthCity"],
-                    birth_state=row["birthState"],
-                    birth_country=row["birthCountry"],
-                    first_game=first_game,
-                    last_game=last_game,
-                ),
-            )
+        player = Player(
+            name=first_name + " " + last_name,
+            given_name=row["nameGiven"],
+            birthdate=birth_day,
+            deathdate=death_day,
+            batting_hand=row["bats"],
+            throwing_hand=row["throws"],
+            birth_city=row["birthCity"],
+            birth_state=row["birthState"],
+            birth_country=row["birthCountry"],
+            first_game=first_game,
+            last_game=last_game,
         )
-        if len(players_to_create) >= 1000:
-            Player.objects.bulk_create([t[1] for t in players_to_create])
-            new_objects = sorted(list(Player.objects.all()), key=lambda x: x.player_id, reverse=True)[-1000:]
-            print(f"Added batch of {len(new_objects)} players")
-            for db_player, (player_id, _) in zip(new_objects, players_to_create):
-                players[player_id] = db_player
-            players_to_create = []
+        player_objects.append(player)
+        players[pid] = player
 
-    # Create any remaining players
-    if players_to_create:
-        Player.objects.bulk_create([t[1] for t in players_to_create])
+        if len(player_objects) >= 1000:
+            Player.objects.bulk_create(player_objects)
+            print(f"Bulk created {len(player_objects)} players")
+            player_objects = []
+
+    if player_objects:
+        Player.objects.bulk_create(player_objects)
+        print(f"Bulk created final {len(player_objects)} players")
 
     cursor.close()
     conn.close()
 
+    db_players = {(p.name, p.birthdate): p for p in Player.objects.all()}
+    for pid, player in list(players.items()):
+        db_player = db_players.get((player.name, player.birthdate.date()))
+        if db_player is None:
+            print(f"Warning: Player {player.name} not found in database")
+            continue
+        players[pid] = db_player
+        print(
+            f"Retrieved DB ID for player: {db_player.name} (ID: {db_player.player_id})"
+        )
+
+    add_positions(players)
+
     return players
+
+
+def retrieve_teams():
+    # Connect to original database
+    conn = connect_to_original_db()
+    cursor = conn.cursor(dictionary=True)  # Returns results as dictionaries
+
+    teams = {}
+    # Query to get all teams
+    cursor.execute(
+        """
+        select
+          t.teamID as "team_id",
+          (select franchName from teamFranchises tf2 where max(t.franchID) = tf2.franchID limit 1) as "team_name",
+          max(t.lgID) as "league",
+          max(t.yearID) as "most_recent_year",
+          min(t.yearID) as "year_founded"
+        from teams t
+        group by t.teamID;
+    """
+    )
+
+    cursor.close()
+    conn.close()
+
+    return teams
 
 
 def add_seasons(players):
@@ -218,31 +251,49 @@ def add_seasons(players):
     cursor = conn.cursor(dictionary=True)
 
     # Combined query to get games played and salary data in one go
-    cursor.callproc("addSeasons")
+    cursor.execute(
+        """
+        SELECT b.playerID, b.yearID, b.teamID, b.lgID,
+               SUM(b.G) as gamesPlayed,
+               SUM(s.salary) as totalSalary
+        FROM batting b
+        LEFT JOIN salaries s ON b.playerID = s.playerID 
+            AND b.yearID = s.yearID
+        GROUP BY b.playerID, b.yearID, b.teamID, b.lgID
+    """
+    )
 
-    for row in cursor.stored_results():
+    print("Creating player seasons...")
+    seasons: dict[tuple, PlayerSeason] = {}
+    for row in cursor.fetchall():
         pid = row["playerID"]
         yid = row["yearID"]
         tid = row["teamID"]
 
-        p = players.get(pid)
-        if p is None:
+        if pid not in players:
             continue
+        p = players[pid]
 
-        ps = p.seasons.filter(year=yid).first()
-        if ps is None:
-            ps = PlayerSeason.objects.create(
+        if yid not in seasons:
+            seasons[(yid, pid)] = PlayerSeason(
                 player=p,
                 year=yid,
                 games_played=row["gamesPlayed"],
                 salary=row["totalSalary"] if row["totalSalary"] is not None else 0,
             )
         else:
+            ps = seasons[(yid, pid)]
             ps.games_played += row["gamesPlayed"]
-            if row["totalSalary"]:  # Only update salary if it exists
+            if row["totalSalary"]:
                 ps.salary += row["totalSalary"]
-            ps.save()
-        print(f"Created player-season: {pid}, {yid}")
+
+    print(f"Created {len(seasons)} player seasons")
+
+    player_season_objects = list(seasons.values())
+    for i in range(0, len(player_season_objects), 1000):
+        batch = player_season_objects[i : i + 1000]
+        PlayerSeason.objects.bulk_create(batch)
+        print(f"Bulk created {len(batch)} player seasons")
 
         # TODOAdd team_seasons
 
@@ -275,15 +326,30 @@ def add_batting_stats(players):
     """
     )
 
+    print("Getting player seasons...")
+    player_seasons = PlayerSeason.objects.select_related("player").all()
+    print("Got player seasons")
+    print("Mapping players...")
+    player_map = {p.player_id: k for k, p in players.items()}
+    print("Mapped players")
+    print("Mapping player seasons...")
+    player_season_map = {
+        (player_map[ps.player.player_id], ps.year): ps for ps in player_seasons
+    }
+    print("Mapped player seasons")
+    needed_stats = []
     for row in cursor.fetchall():
         pid = row["playerID"]
         yid = row["yearID"]
-        p = players.get(pid)
-        if p is None:
+        if pid not in players:
             continue
-        ps = p.seasons.filter(year=yid).first()
-        if ps is not None:
-            BattingStats.objects.create(
+        p = players[pid]
+        if (pid, yid) not in player_season_map:
+            print(f"Warning: player season for {pid}, {yid} was not found in the map")
+            continue
+        ps = player_season_map[(pid, yid)]
+        needed_stats.append(
+            BattingStats(
                 player_season=ps,
                 at_bats=row["atBats"],
                 hits=row["hits"],
@@ -298,7 +364,16 @@ def add_batting_stats(players):
                 steals=row["steals"],
                 steals_attempted=row["stealsAttempted"],
             )
-            print(f"Added batting stats to {p.name}'s {yid} season")
+        )
+
+        if len(needed_stats) >= 1000:
+            BattingStats.objects.bulk_create(needed_stats)
+            print(f"Bulk created {len(needed_stats)} batting stats")
+            needed_stats = []
+
+    if needed_stats:
+        BattingStats.objects.bulk_create(needed_stats)
+        print(f"Bulk created final {len(needed_stats)} batting stats")
 
     cursor.close()
     conn.close()
@@ -324,31 +399,69 @@ def add_fielding_stats(players):
     """
     )
 
+    print("Getting player seasons...")
+    player_seasons = PlayerSeason.objects.select_related("player").all()
+    print("Got player seasons")
+    print("Mapping players...")
+    player_map = {p.player_id: k for k, p in players.items()}
+    print("Mapped players")
+    print("Mapping player seasons...")
+    player_season_map = {
+        (player_map[ps.player.player_id], ps.year): ps for ps in player_seasons
+    }
+    print("Mapped player seasons")
+
+    fielding_stats = []
+    catching_stats = []
+
     for row in cursor.fetchall():
         pid = row["playerID"]
         yid = row["yearID"]
-        p = players.get(pid)
-        if p is None:
+        if pid not in players:
             continue
+        p = players[pid]
 
-        ps = p.seasons.filter(year=yid).first()
-        if ps is not None:
-            # Create fielding stats for all players
-            FieldingStats.objects.create(
+        if (pid, yid) not in player_season_map:
+            print(f"Warning: player season for {pid}, {yid} was not found in the map")
+            continue
+        ps = player_season_map[(pid, yid)]
+
+        # Create fielding stats for all players
+        fielding_stats.append(
+            FieldingStats(
                 player_season=ps, errors=row["errors"], put_outs=row["putOuts"]
             )
-            print(f"Added fielding stats to {p.name}'s {yid} season")
+        )
 
-            # Create catching stats only if they played as catcher
-            if row["isCatcher"]:
-                CatchingStats.objects.create(
+        # Create catching stats only if they played as catcher
+        if row["isCatcher"]:
+            catching_stats.append(
+                CatchingStats(
                     player_season=ps,
                     passed_balls=row["passedBalls"],
                     wild_pitches=row["wildPitches"],
                     steals_allowed=row["stealsAllowed"],
                     steals_caught=row["stealsCaught"],
                 )
-                print(f"Added catching stats to {p.name}'s {yid} season")
+            )
+
+        if len(fielding_stats) >= 1000:
+            FieldingStats.objects.bulk_create(fielding_stats)
+            print(f"Bulk created {len(fielding_stats)} fielding stats")
+            fielding_stats = []
+
+        if len(catching_stats) >= 1000:
+            CatchingStats.objects.bulk_create(catching_stats)
+            print(f"Bulk created {len(catching_stats)} catching stats")
+            catching_stats = []
+
+    if fielding_stats:
+        FieldingStats.objects.bulk_create(fielding_stats)
+        print(f"Bulk created final {len(fielding_stats)} fielding stats")
+
+    if catching_stats:
+        CatchingStats.objects.bulk_create(catching_stats)
+        print(f"Bulk created final {len(catching_stats)} catching stats")
 
     cursor.close()
     conn.close()
@@ -378,15 +491,33 @@ def add_pitching_stats(players):
     """
     )
 
+    print("Getting player seasons...")
+    player_seasons = PlayerSeason.objects.select_related("player").all()
+    print("Got player seasons")
+    print("Mapping players...")
+    player_map = {p.player_id: k for k, p in players.items()}
+    print("Mapped players")
+    print("Mapping player seasons...")
+    player_season_map = {
+        (player_map[ps.player.player_id], ps.year): ps for ps in player_seasons
+    }
+    print("Mapped player seasons")
+
+    pitching_stats = []
+
     for row in cursor.fetchall():
         pid = row["playerID"]
         yid = row["yearID"]
-        p = players.get(pid)
-        if p is None:
+
+        if pid not in players:
             continue
-        ps = p.seasons.filter(year=yid).first()
-        if ps is not None:
-            PitchingStats.objects.create(
+        p = players[pid]
+
+        if (pid, yid) not in player_season_map:
+            print(f"Warning: player season for {pid}, {yid} was not found in the map")
+        ps = player_season_map[(pid, yid)]
+        pitching_stats.append(
+            PitchingStats(
                 player_season=ps,
                 outs_pitched=row["outsPitched"],
                 earned_runs_allowed=row["earnedRunsAllowed"],
@@ -400,7 +531,16 @@ def add_pitching_stats(players):
                 hit_batters=row["hitBatters"],
                 saves=row["saves"],
             )
-            print(f"Added pitching stats to {p.name}'s {yid} season")
+        )
+
+        if len(pitching_stats) >= 1000:
+            PitchingStats.objects.bulk_create(pitching_stats)
+            print(f"Bulk created {len(pitching_stats)} pitching stats")
+            pitching_stats = []
+
+    if pitching_stats:
+        PitchingStats.objects.bulk_create(pitching_stats)
+        print(f"Bulk created final {len(pitching_stats)} pitching stats")
 
     cursor.close()
     conn.close()
@@ -411,11 +551,11 @@ if __name__ == "__main__":
     start_time = time.time()
 
     players = retrieve_players()
-    # add_positions(players)
-    # add_seasons(players)
-    # add_batting_stats(players)
-    # add_fielding_stats(players)
-    # add_pitching_stats(players)
+    # teams = retrieve_teams()
+    add_seasons(players)
+    add_batting_stats(players)
+    add_fielding_stats(players)
+    add_pitching_stats(players)
     # persist all the objects
 
     end_time = time.time()
