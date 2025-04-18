@@ -323,8 +323,8 @@ def add_seasons(players, teams: dict):
         player_team_season_model.objects.bulk_create(
             [
                 player_team_season_model(
-                    player_id=players[pts[0]].player_id,
-                    teamseason_id=team_seasons_dict[(pts[1], pts[2])].id,
+                    player=players[pts[0]],
+                    teamseason=team_seasons_dict[(pts[1], pts[2])],
                 )
                 for pts in batch
             ]
