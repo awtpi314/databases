@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+    <title>MLB Data</title>
+    <body>
+        <h1 align="center">CU CS-3610 MLB Data</h1>
+        <p align="center">
+        <img src="{% static 'mlb_data/images/mlb-logo.jpg' %}" alt="MLB Logo">
+        <br/>
+        <a href="{% url 'player_search' %}">Player Search</a> <br/>
+    </body>
+</html>

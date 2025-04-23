@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+{% load filters %}
+<html>
+    <title>MLB Data - {{player.name}} Details</title>
+    <body>
+        <h1>MLB Player Details - {{player.name}}</h1>
+        <table border="1">
+            <tr>
+                <th>Name</th>
+                <th>Given Name</th>
+                <th>Birthdate</th>
+                <th>Deathdate</th>
+                <th>Hometown</th>
+            </tr>
+            <tr>
+                <td align="center">{{ player.name }}</td>
+                <td align="center">{{ player.given_name }}</td>
+                <td align="center">{{ player.birthdate }}</td>
+                <td align="center">{{ player.deathdate }}</td>
+                <td align="center">{{ player.birth_city }}, {{ player.birth_state }}</td>
+            </tr>
+        </table>
+        <br/>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Positions</th>
+                    <th>Batting Hand</th>
+                    <th>Throwing Hand</th>
+                    <th>First Game</th>
+                    <th>Last Game</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td align="center">{% for position in player.positions.all %}
+                        {{ position.position_code }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}</td>
+                    <td align="center">{{ player.batting_hand }}</td>
+                    <td align="center">{{ player.throwing_hand }}</td>
+                    <td>{{ player.first_game }}</td>
+                    <td>{{ player.last_game }}</td>
+                </tr>
+            </tbody>
+        </table>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Games Played</th>
+                    <th>Salary</th>
+                    <th>Team(s)</th>
+                    <th>Hits</th>
+                    <th>At Bats</th>
+                    <th>Batting Average</th>
+                    <th>Home Runs</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player_season in player_seasons %}
+                    <tr>
+                        <td>{{ player_season.year }}</td>
+                        <td align="right">{{ player_season.games_played }}</td>
+                        <td align="right">${{ player_season.salary }}</td>
+                        <td> </td>
+                        <td align="right">{{ player_season.batting_stats.hits }}</td>
+                        <td align="right">{{ player_season.batting_stats.at_bats }}</td>
+                        <td align="right">{{ player_season.batting_stats.hits|divide:player_season.batting_stats.at_bats|floatformat:3 }}</td>
+                        <td align="right">{{ player_season.batting_stats.home_runs }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br/>
+        <a href="{% url 'player_search' %}">Back to Player Search</a> <br/>
+        <a href="{% url 'mlb_data' %}">Back to Home</a>
+    </body>
+</html>

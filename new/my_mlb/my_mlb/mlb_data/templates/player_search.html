@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+    <title>MLB Data - Player Search</title>
+    <body>
+        <h1>MLB - Player Search</h1>
+        <form action="{% url 'player_search_results' %}" method="post">
+            <input type="text" name="q_name" placeholder="Player Name">
+            <input type="submit" value="Search">
+        </form>
+        <br/>
+        <a href="{% url 'mlb_data' %}">Back to Home</a>
+    </body>
+</html>
