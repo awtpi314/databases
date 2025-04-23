@@ -30,9 +30,11 @@ def player_search_results(request):
 
 @csrf_exempt
 def player_details(request, player_id):
-    player = Player.objects.get(player_id=player_id)
+    player = Player.objects.prefetch_related("seasons__batting_stats", "positions", "team_seasons__team").get(player_id=player_id)
     template = loader.get_template("player_details.html")
-    context = {"player": player, "player_seasons": player.seasons.all()}
+    team_seasons = {ts.year: {"name": ts.team.name, "id": ts.team.id} for ts in player.team_seasons.all()}
+    player_stats = player.seasons.all()
+    context = {"player": player, "player_seasons": player_stats, "team_seasons": team_seasons}
     return HttpResponse(template.render(context, request))
 
 @csrf_exempt
