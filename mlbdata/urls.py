@@ -9,5 +9,13 @@ urlpatterns = [
         views.player_search_results,
         name="player_search_results",
     ),
-    path("player/<int:player_id>/", views.player_details, name="player_details"),
+    path("player/<int:player_id>/", views.player_details, name="player_details"),   
+    
+    path("team_search/", views.team_search, name="team_search"),
+    path(
+        "team_search_results/",
+        views.team_search_results,
+        name="team_search_results",
+    ),
+    path("team/<int:team_id>/", views.team_details, name="team_details"),
 ]

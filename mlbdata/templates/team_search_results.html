@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <title>MLB Data - Team Search Results</title>
+    <body>
+        <h1>MLB - Team Search Results</h1>
+        <p>Search results for "{{ q_name }}"</p>
+        <table border="1">
+            <tr>
+                <th>Team ID</th>
+                <th>Name</th>
+                <th>League</th>
+                <th>Year Founded</th>
+                <th>Most Recent Year</th>
+            </tr>
+            {% for team in teams %}
+                <tr>
+                    <td>{{ team.team_id }}</td>
+                    <td><a href="{% url 'team_details' team.id %}">{{ team.name }}</a></td>
+                    <td>{{ team.league }}</td>
+                    <td>{{ team.year_founded }}</td>
+                    <td>{{ team.most_recent_year }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <br/>
+        <a href="{% url 'team_search' %}">Back to Team Search</a> <br/>
+        <a href="{% url 'mlb_data' %}">Back to Home</a>
+    </body>
+</html>

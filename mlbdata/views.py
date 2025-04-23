@@ -34,3 +34,29 @@ def player_details(request, player_id):
     template = loader.get_template("player_details.html")
     context = {"player": player, "player_seasons": player.seasons.all()}
     return HttpResponse(template.render(context, request))
+
+@csrf_exempt
+def team_search(request):
+    template = loader.get_template("team_search.html")
+    return HttpResponse(template.render())
+
+
+@csrf_exempt
+def team_search_results(request):
+    q_name = request.POST.get("q_name")
+    if q_name:
+        teams = Team.objects.filter(name__icontains=q_name)
+    else:
+        teams = []
+    template = loader.get_template("team_search_results.html")
+    context = {"teams": teams, "q_name": q_name}
+    return HttpResponse(template.render(context, request))
+
+
+@csrf_exempt
+def team_details(request, team_id):
+    team = Team.objects.get(id=id)
+    team_season = TeamSeason.objects.filter(team=team)
+    template = loader.get_template("team_details.html")
+    context = {"team": team, "team_seasons": team.seasons.all()}
+    return HttpResponse(template.render(context, request))
