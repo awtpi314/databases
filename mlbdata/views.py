@@ -55,8 +55,8 @@ def team_search_results(request):
 
 @csrf_exempt
 def team_details(request, team_id):
-    team = Team.objects.get(id=id)
+    team = Team.objects.get(id=team_id)
     team_season = TeamSeason.objects.filter(team=team)
     template = loader.get_template("team_details.html")
-    context = {"team": team, "team_seasons": team.seasons.all()}
+    context = {"team": team, "team_seasons": team_season.all()}
     return HttpResponse(template.render(context, request))
