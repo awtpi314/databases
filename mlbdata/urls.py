@@ -18,4 +18,6 @@ urlpatterns = [
         name="team_search_results",
     ),
     path("team/<int:team_id>/", views.team_details, name="team_details"),
+    path("roster/<int:team_season_id>/", views.roster_details, name="roster_details"),
+
 ]

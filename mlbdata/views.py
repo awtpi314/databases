@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from django.template import loader
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Player, Team, TeamSeason
+from .models import Player, PlayerSeason, Team, TeamSeason
 
 
 def mlb_data(request):
@@ -61,4 +61,14 @@ def team_details(request, team_id):
     team_season = TeamSeason.objects.filter(team=team)
     template = loader.get_template("team_details.html")
     context = {"team": team, "team_seasons": team_season.all()}
+    return HttpResponse(template.render(context, request))
+
+@csrf_exempt
+def roster_details(request, team_season_id):
+    roster = Player.objects.filter(team_seasons=team_season_id)
+    player_season = PlayerSeason.objects.filter(player__in=roster)
+    team_season = TeamSeason.objects.get(id=team_season_id)
+    team = Team.objects.get(id=team_season.team.id)
+    template = loader.get_template("roster_details.html")
+    context = {"roster": roster, "player_season": player_season, "team_season": team_season, "team": team, "payroll": roster.aggregate(sum("salary"))['salary']}
     return HttpResponse(template.render(context, request))

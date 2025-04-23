@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+{% load filters %}
+<html>
+<title>MLB Data - {team_season.year team_season.name} Details</title>
+
+<body>
+  <h1>MLB Roster Details - {team_season.year team_season.name}</h1>
+  <table border="1">
+    <tr>
+      <th>Name</th>
+      <th>League</th>
+      <th>Year</th>
+      <th>Payroll</th>
+    </tr>
+    <tr>
+      <td align="center">{{ team.name }}</td>
+      <td align="center">{{ team.league }}</td>
+      <td align="center">{{ team_season.year }}</td>
+      <td align="center">{{ payroll }}</td>
+    </tr>
+  </table>
+  <br />
+  <table border="1">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Games Played</th>
+        <th>Salary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for player in roster %}
+      <tr>
+        <td>{{ player.name }}</td>
+        <td align="right">{{ player_season.games_played }}</td>
+        <td><a href=" url 'player_details' player.id">Roster</a></td>
+        <td align="right">{{ player_season.salary }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <br />
+  <a href="{% url 'team_deatils' team.id %}">Back to Team Details</a> <br />
+  <a href="{% url 'mlb_data' %}">Back to Home</a>
+</body>
+
+</html>
