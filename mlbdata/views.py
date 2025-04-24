@@ -212,10 +212,11 @@ def season_stats_json(request):
 @csrf_exempt
 def roster_details(request, team_season_id):
     roster = Player.objects.filter(team_seasons=team_season_id)
-    player_season = PlayerSeason.objects.filter(player__in=roster)
     team_season = TeamSeason.objects.get(id=team_season_id)
     team = Team.objects.get(id=team_season.team.id)
+    player_season = PlayerSeason.objects.filter(player__in=roster, year=team_season.year)
+    player_season_lookup = {ps.player.player_id: ps for ps in player_season}
     template = loader.get_template("roster_details.html")
     total_salary = sum([ps.salary for ps in player_season if ps.salary is not None])
-    context = {"roster": roster, "player_season": player_season, "team_season": team_season, "team": team, "payroll": total_salary}
+    context = {"roster": roster, "players_season": player_season_lookup, "team_season": team_season, "team": team, "payroll": total_salary}
     return HttpResponse(template.render(context, request))

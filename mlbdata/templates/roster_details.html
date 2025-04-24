@@ -30,12 +30,13 @@
     </thead>
     <tbody>
       {% for player in roster %}
+      {% with ps=players_season|get_item:player.player_id %}
       <tr>
-        <td>{{ player.name }}</td>
-        <td align="right">{{ player_season.games_played }}</td>
-        <td><a href=" url 'player_details' player.id">Roster</a></td>
-        <td align="right">{{ player_season.salary }}</td>
+        <td><a href="{% url 'player_details' player.player_id %}">{{player.name}}</a></td>
+        <td align="right">{{ ps.games_played }}</td>
+        <td align="right">${{ ps.salary }}</td>
       </tr>
+      {% endwith %}
       {% endfor %}
     </tbody>
   </table>
