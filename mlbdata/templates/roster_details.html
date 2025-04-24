@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 {% load filters %}
 <html>
-<title>MLB Data - {team_season.year team_season.name} Details</title>
+<title>MLB Data - {{team_season.year}} {{team.name}} Details</title>
 
 <body>
-  <h1>MLB Roster Details - {team_season.year team_season.name}</h1>
+  <h1>MLB Roster Details - {{team_season.year}} {{team.name}}</h1>
   <table border="1">
     <tr>
       <th>Name</th>
