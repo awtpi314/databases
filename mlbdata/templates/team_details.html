@@ -83,7 +83,7 @@
                 <td>{{ team_season.rank }}</td>
                 <td>{{ team_season.total_attendance }}</td>
                 <td>
-                  <a href=" url 'roster_view' team_season.id">View Roster</a>
+                  <a href="{% url 'roster_details' team_season.id %}">View Roster</a>
                 </td>
               </tr>
               {% endfor %}
