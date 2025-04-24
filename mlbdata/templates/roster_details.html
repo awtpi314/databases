@@ -1,48 +1,116 @@
 <!DOCTYPE html>
-{% load filters %}
+{% load static %} {% load filters %}
 <html>
-<title>MLB Data - {{team_season.year}} {{team.name}} Details</title>
+  <head>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{% static 'mlb_data/css/styles.css' %}"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="{% static 'mlb_data/images/favicon-96x96.png' %}"
+      sizes="96x96"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="{% static 'mlb_data/images/favicon.svg' %}"
+    />
+    <link
+      rel="shortcut icon"
+      href="{% static 'mlb_data/images/favicon.ico' %}"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="{% static 'mlb_data/images/apple-touch-icon.png' %}"
+    />
+    <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
+    <title>MLB Data - {{team_season.year}} {{team.name}} Roster</title>
+  </head>
+  <body>
+    <header>
+      <a class="link-home" href="{% url 'mlb_data' %}">
+        <img
+          src="{% static 'mlb_data/images/mlb-logo.jpg' %}"
+          alt="MLB Logo"
+          class="logo"
+        />
+        <h1>MLB Data</h1>
+      </a>
+      <div class="grow"></div>
+      <nav>
+        <ul class="nav-buttons">
+          <li><a href="{% url 'player_search' %}">Player Search</a></li>
+          <li><a href="{% url 'team_search' %}">Team Search</a></li>
+        </ul>
+      </nav>
+    </header>
 
-<body>
-  <h1>MLB Roster Details - {{team_season.year}} {{team.name}}</h1>
-  <table border="1">
-    <tr>
-      <th>Name</th>
-      <th>League</th>
-      <th>Year</th>
-      <th>Payroll</th>
-    </tr>
-    <tr>
-      <td align="center">{{ team.name }}</td>
-      <td align="center">{{ team.league }}</td>
-      <td align="center">{{ team_season.year }}</td>
-      <td align="center">{{ payroll }}</td>
-    </tr>
-  </table>
-  <br />
-  <table border="1">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Games Played</th>
-        <th>Salary</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for player in roster %}
-      {% with ps=players_season|get_item:player.player_id %}
-      <tr>
-        <td><a href="{% url 'player_details' player.player_id %}">{{player.name}}</a></td>
-        <td align="right">{{ ps.games_played }}</td>
-        <td align="right">${{ ps.salary }}</td>
-      </tr>
-      {% endwith %}
-      {% endfor %}
-    </tbody>
-  </table>
-  <br />
-  <a href="{% url 'team_details' team.id %}">Back to Team Details</a> <br />
-  <a href="{% url 'mlb_data' %}">Back to Home</a>
-</body>
+    <main class="search-results">
+      <div class="container">
+        <h2>{{team_season.year}} {{team.name}} Roster Details</h2>
 
+        <div class="feature-card">
+          <h3>Team Information</h3>
+          <table>
+            <tr>
+              <th>Name</th>
+              <th>League</th>
+              <th>Year</th>
+              <th>Payroll</th>
+            </tr>
+            <tr>
+              <td>{{ team.name }}</td>
+              <td>{{ team.league }}</td>
+              <td>{{ team_season.year }}</td>
+              <td>${{ payroll }}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="results-table">
+          <h3>Players Roster</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Games Played</th>
+                <th>Salary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for player in roster %} {% with ps=players_season|get_item:player.player_id %}
+              <tr>
+                <td>
+                  <a href="{% url 'player_details' player.player_id %}">
+                    {{player.name}}</a
+                  >
+                </td>
+                <td>{{ ps.games_played }}</td>
+                <td>${{ ps.salary }}</td>
+              </tr>
+              {% endwith %} {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="back-links">
+          <a href="{% url 'team_details' team.id %}" class="btn">
+            Back to Team Details
+          </a>
+          <a href="{% url 'mlb_data' %}" class="btn">Back to Home</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        &copy; {% now "Y" %} Anderson Levasseur and Alexander Taylor. All rights
+        reserved.
+      </p>
+    </footer>
+  </body>
 </html>
