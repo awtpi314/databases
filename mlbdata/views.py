@@ -70,5 +70,6 @@ def roster_details(request, team_season_id):
     team_season = TeamSeason.objects.get(id=team_season_id)
     team = Team.objects.get(id=team_season.team.id)
     template = loader.get_template("roster_details.html")
-    context = {"roster": roster, "player_season": player_season, "team_season": team_season, "team": team, "payroll": roster.aggregate(sum("salary"))['salary']}
+    total_salary = sum([ps.salary for ps in player_season if ps.salary is not None])
+    context = {"roster": roster, "player_season": player_season, "team_season": team_season, "team": team, "payroll": total_salary}
     return HttpResponse(template.render(context, request))
