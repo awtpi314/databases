@@ -1,54 +1,108 @@
 <!DOCTYPE html>
-{% load filters %}
+{% load filters %} {% load static %}
 <html>
-<title>MLB Data - {{team.name}} Details</title>
+  <head>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{% static 'mlb_data/css/styles.css' %}"
+    />
+    <link rel="icon" type="image/png" href="{% static 'mlb_data/images/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'mlb_data/images/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'mlb_data/images/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'mlb_data/images/apple-touch-icon.png' %}" />
+    <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
+    <title>MLB Data - {{team.name}} Details</title>
+  </head>
+  <body>
+    <header>
+      <a class="link-home" href="{% url 'mlb_data' %}">
+        <img
+          src="{% static 'mlb_data/images/mlb-logo.jpg' %}"
+          alt="MLB Logo"
+          class="logo"
+        />
+        <h1>MLB Data</h1>
+      </a>
+      <div class="grow"></div>
+      <nav>
+        <ul class="nav-buttons">
+          <li><a href="{% url 'player_search' %}">Player Search</a></li>
+          <li><a href="{% url 'team_search' %}">Team Search</a></li>
+        </ul>
+      </nav>
+    </header>
 
-<body>
-  <h1>MLB Team Details - {{team.name}}</h1>
-  <table border="1">
-    <tr>
-      <th>Name</th>
-      <th>League</th>
-      <th>Year Founded</th>
-      <th>Most Recent Year</th>
-    </tr>
-    <tr>
-      <td align="center">{{ team.name }}</td>
-      <td align="center">{{ team.league }}</td>
-      <td align="center">{{ team.year_founded }}</td>
-      <td align="center">{{ team.most_recent_year }}</td>
-    </tr>
-  </table>
-  <br />
-  <table border="1">
-    <thead>
-      <tr>
-        <th>Year</th>
-        <th>Games</th>
-        <th>Roster</th>
-        <th>Wins</th>
-        <th>Losses</th>
-        <th>Ranks</th>
-        <th>Total Attendance</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for team_season in team_seasons %}
-      <tr>
-        <td>{{ team_season.year }}</td>
-        <td align="right">{{ team_season.games_played }}</td>
-        <td><a href="{% url 'roster_details' team_season.id %}">Roster</a></td>
-        <td align="right">{{ team_season.wins }}</td>
-        <td align="right">{{ team_season.losses }}</td>
-        <td align="right">{{ team_season.rank }}</td>
-        <td align="right">{{ team_season.total_attendance }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <br />
-  <a href="{% url 'team_search' %}">Back to Team Search</a> <br />
-  <a href="{% url 'mlb_data' %}">Back to Home</a>
-</body>
+    <main class="search-results">
+      <div class="container">
+        <h2>Team Details - {{team.name}}</h2>
 
+        <div class="results-table">
+          <h3>Team Information</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>League</th>
+                <th>Year Founded</th>
+                <th>Most Recent Year</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ team.name }}</td>
+                <td>{{ team.league }}</td>
+                <td>{{ team.year_founded }}</td>
+                <td>{{ team.most_recent_year }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="results-table">
+          <h3>Season History</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Games</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Rank</th>
+                <th>Total Attendance</th>
+                <th>Roster</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for team_season in team_seasons %}
+              <tr>
+                <td>{{ team_season.year }}</td>
+                <td>{{ team_season.games_played }}</td>
+                <td>{{ team_season.wins }}</td>
+                <td>{{ team_season.losses }}</td>
+                <td>{{ team_season.rank }}</td>
+                <td>{{ team_season.total_attendance }}</td>
+                <td>
+                  <a href=" url 'roster_view' team_season.id">View Roster</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="back-links">
+          <a href="{% url 'team_search' %}" class="btn">Back to Team Search</a>
+          <a href="{% url 'mlb_data' %}" class="btn">Back to Home</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        &copy; {% now "Y" %} Anderson Levasseur and Alexander Taylor. All rights
+        reserved.
+      </p>
+    </footer>
+  </body>
 </html>

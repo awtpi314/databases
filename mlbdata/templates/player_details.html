@@ -1,92 +1,148 @@
 <!DOCTYPE html>
-{% load filters %}
+{% load filters %} {% load static %}
 <html>
-  <title>MLB Data - {{player.name}} Details</title>
-
+  <head>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{% static 'mlb_data/css/styles.css' %}"
+    />
+    <link rel="icon" type="image/png" href="{% static 'mlb_data/images/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'mlb_data/images/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'mlb_data/images/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'mlb_data/images/apple-touch-icon.png' %}" />
+    <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
+    <title>MLB Data - {{player.name}} Details</title>
+  </head>
   <body>
-    <h1>MLB Player Details - {{player.name}}</h1>
-    <table border="1">
-      <tr>
-        <th>Name</th>
-        <th>Given Name</th>
-        <th>Birthdate</th>
-        <th>Deathdate</th>
-        <th>Hometown</th>
-      </tr>
-      <tr>
-        <td align="center">{{ player.name }}</td>
-        <td align="center">{{ player.given_name }}</td>
-        <td align="center">{{ player.birthdate }}</td>
-        <td align="center">{{ player.deathdate }}</td>
-        <td align="center">
-          {{ player.birth_city }}, {{ player.birth_state }}
-        </td>
-      </tr>
-    </table>
-    <br />
-    <table border="1">
-      <thead>
-        <tr>
-          <th>Positions</th>
-          <th>Batting Hand</th>
-          <th>Throwing Hand</th>
-          <th>First Game</th>
-          <th>Last Game</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td align="center">
-            {% for position in player.positions.all %} {{ position.position_code
-            }}{% if not forloop.last %}, {% endif %} {% endfor %}
-          </td>
-          <td align="center">{{ player.batting_hand }}</td>
-          <td align="center">{{ player.throwing_hand }}</td>
-          <td>{{ player.first_game }}</td>
-          <td>{{ player.last_game }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <table border="1">
-      <thead>
-        <tr>
-          <th>Year</th>
-          <th>Games Played</th>
-          <th>Salary</th>
-          <th>Team(s)</th>
-          <th>Hits</th>
-          <th>At Bats</th>
-          <th>Batting Average</th>
-          <th>Home Runs</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for player_season in player_seasons %}
-        <tr>
-          <td>{{ player_season.year }}</td>
-          <td align="right">{{ player_season.games_played }}</td>
-          <td align="right">${{ player_season.salary }}</td>
-          <td>
-            <a
-              href="{% url 'team_details' team_seasons|get_item:player_season.year|get_item:'id' %}"
-            >
-              {{ team_seasons|get_item:player_season.year|get_item:"name" }}
-            </a>
-          </td>
-          <td align="right">{{ player_season.batting_stats.hits }}</td>
-          <td align="right">{{ player_season.batting_stats.at_bats }}</td>
-          <td align="right">
-            {{
-            player_season.batting_stats.hits|divide:player_season.batting_stats.at_bats|floatformat:3
-            }}
-          </td>
-          <td align="right">{{ player_season.batting_stats.home_runs }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <br />
-    <a href="{% url 'player_search' %}">Back to Player Search</a> <br />
-    <a href="{% url 'mlb_data' %}">Back to Home</a>
+    <header>
+      <a class="link-home" href="{% url 'mlb_data' %}">
+        <img
+          src="{% static 'mlb_data/images/mlb-logo.jpg' %}"
+          alt="MLB Logo"
+          class="logo"
+        />
+        <h1>MLB Data</h1>
+      </a>
+      <div class="grow"></div>
+      <nav>
+        <ul class="nav-buttons">
+          <li><a href="{% url 'player_search' %}">Player Search</a></li>
+          <li><a href="{% url 'team_search' %}">Team Search</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="search-results">
+      <div class="container">
+        <h2>Player Details - {{player.name}}</h2>
+
+        <div class="results-table">
+          <h3>Personal Information</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Given Name</th>
+                <th>Birthdate</th>
+                <th>Deathdate</th>
+                <th>Hometown</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ player.name }}</td>
+                <td>{{ player.given_name }}</td>
+                <td>{{ player.birthdate }}</td>
+                <td>{{ player.deathdate|default:"-" }}</td>
+                <td>{{ player.birth_city }}, {{ player.birth_state }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="results-table">
+          <h3>Career Information</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Positions</th>
+                <th>Batting Hand</th>
+                <th>Throwing Hand</th>
+                <th>First Game</th>
+                <th>Last Game</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  {% for position in player.positions.all %}
+                  {{ position.position_code }}{% if not forloop.last %},
+                  {% endif %} {% endfor %}
+                </td>
+                <td>{{ player.batting_hand }}</td>
+                <td>{{ player.throwing_hand }}</td>
+                <td>{{ player.first_game }}</td>
+                <td>{{ player.last_game }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="results-table">
+          <h3>Season Statistics</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Games Played</th>
+                <th>Salary</th>
+                <th>Team</th>
+                <th>Hits</th>
+                <th>At Bats</th>
+                <th>Batting Average</th>
+                <th>Home Runs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for player_season in player_seasons %}
+              <tr>
+                <td>{{ player_season.year }}</td>
+                <td>{{ player_season.games_played }}</td>
+                <td>${{ player_season.salary }}</td>
+                <td>
+                  <a
+                    href="{% url 'team_details' team_seasons|get_item:player_season.year|get_item:'id' %}"
+                  >
+                    {{ team_seasons|get_item:player_season.year|get_item:"name" }}
+                  </a>
+                </td>
+                <td>{{ player_season.batting_stats.hits }}</td>
+                <td>{{ player_season.batting_stats.at_bats }}</td>
+                <td>
+                  {{ player_season.batting_stats.hits|divide:player_season.batting_stats.at_bats|floatformat:3 }}
+                </td>
+                <td>{{ player_season.batting_stats.home_runs }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="back-links">
+          <a href="{% url 'player_search' %}" class="btn"
+            >Back to Player Search</a
+          >
+          <a href="{% url 'mlb_data' %}" class="btn">Back to Home</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        &copy; {% now "Y" %} Anderson Levasseur and Alexander Taylor. All rights
+        reserved.
+      </p>
+    </footer>
   </body>
 </html>

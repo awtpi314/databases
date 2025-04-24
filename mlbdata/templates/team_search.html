@@ -1,13 +1,66 @@
 <!DOCTYPE html>
-<html>
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MLB Data - Team Search</title>
-    <body>
-        <h1>MLB - Team Search</h1>
-        <form action="{% url 'team_search_results' %}" method="post">
-            <input type="text" name="q_name" placeholder="Team Name">
-            <input type="submit" value="Search">
+    <link rel="stylesheet" href="/static/mlb_data/css/styles.css" />
+    <link rel="icon" type="image/png" href="{% static 'mlb_data/images/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'mlb_data/images/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'mlb_data/images/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'mlb_data/images/apple-touch-icon.png' %}" />
+    <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
+  </head>
+  <body>
+    <header>
+      <a href="{% url 'mlb_data' %}" class="link-home">
+        <img src="{% static 'mlb_data/images/mlb-logo.jpg' %}" alt="MLB Logo" />
+        <h1>MLB Data</h1>
+      </a>
+      <div class="grow"></div>
+      <nav>
+        <ul class="nav-buttons">
+          <li><a href="{% url 'player_search' %}">Player Search</a></li>
+          <li><a href="{% url 'team_search' %}">Team Search</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="home-content">
+      <div class="hero">
+        <h2>Find MLB Teams</h2>
+        <p>Search our comprehensive database of Major League Baseball teams</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Team Search</h3>
+        <form
+          action="{% url 'team_search_results' %}"
+          method="post"
+          class="search-form"
+        >
+          {% csrf_token %}
+          <div class="form-group">
+            <label for="teamName">Team Name:</label>
+            <input
+              type="text"
+              id="teamName"
+              name="q_name"
+              placeholder="Enter team name"
+              required
+            />
+          </div>
+          <button type="submit" class="btn">Search Teams</button>
         </form>
-        <br/>
-        <a href="{% url 'mlb_data' %}">Back to Home</a>
-    </body>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        &copy; {% now "Y" %} Anderson Levasseur and Alexander Taylor. All rights
+        reserved.
+      </p>
+    </footer>
+  </body>
 </html>

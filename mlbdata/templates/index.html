@@ -1,13 +1,139 @@
 <!DOCTYPE html>
 {% load static %}
 <html>
+  <head>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{% static 'mlb_data/css/styles.css' %}"
+    />
+    <link rel="icon" type="image/png" href="{% static 'mlb_data/images/favicon-96x96.png' %}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'mlb_data/images/favicon.svg' %}" />
+    <link rel="shortcut icon" href="{% static 'mlb_data/images/favicon.ico' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'mlb_data/images/apple-touch-icon.png' %}" />
+    <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
     <title>MLB Data</title>
-    <body>
-        <h1 align="center">CU CS-3610 MLB Data</h1>
-        <p align="center">
-        <img src="{% static 'mlb_data/images/mlb-logo.jpg' %}" alt="MLB Logo">
-        <br/>
-        <a href="{% url 'player_search' %}">Player Search</a> <br/>
-        <a href="{% url 'team_search' %}">Team Search</a> <br/>
-    </body>
+    <script src="{% static 'mlb_data/js/main-page.js' %}" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="link-home" href="{% url 'mlb_data' %}">
+        <img
+          src="{% static 'mlb_data/images/mlb-logo.jpg' %}"
+          alt="MLB Logo"
+          class="logo"
+        />
+        <h1>MLB Data</h1>
+      </a>
+      <div class="grow"></div>
+      <nav>
+        <ul class="nav-buttons">
+          <li><a href="{% url 'player_search' %}">Player Search</a></li>
+          <li><a href="{% url 'team_search' %}">Team Search</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main class="home-content">
+      <section class="hero">
+        <img
+          src="{% static 'mlb_data/images/mlb-logo.jpg' %}"
+          alt="Baseball Field"
+          class="hero-image"
+        />
+        <h2>Welcome to MLB Data</h2>
+        <p>
+          Your comprehensive source for Major League Baseball statistics, player
+          information, and team details.
+        </p>
+      </section>
+
+      <section class="features">
+        <div class="feature-card">
+          <h3>Player Statistics</h3>
+          <p>
+            Access detailed statistics for all MLB players including batting
+            averages, home runs, pitching stats, and more.
+          </p>
+          <a href="{% url 'player_search' %}" class="btn">Search Players</a>
+        </div>
+
+        <div class="feature-card">
+          <h3>Team Information</h3>
+          <p>
+            Explore team rosters, historical performance, league standings, and
+            team-specific analytics.
+          </p>
+          <a href="{% url 'team_search' %}" class="btn">Search Teams</a>
+        </div>
+
+        <div class="feature-card">
+          <h3>Highlights</h3>
+          <p>Laugh at some of the best fails in baseball.</p>
+          <a href="https://www.youtube.com/watch?v=XZHwYuv3sAM" class="btn"
+            >View Highlights</a
+          >
+        </div>
+      </section>
+
+      <section class="quick-stats">
+        <h3>League Leaders</h3>
+        <div class="stats-container">
+          <div class="stat-box">
+            <h4>Batting Average</h4>
+            <div class="leader-info">
+              <table id="batting-stats-table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Average</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <p class="loading-indicator">
+                Loading batting average leaders...
+              </p>
+            </div>
+          </div>
+          <div class="stat-box">
+            <h4>Home Runs</h4>
+            <div class="leader-info">
+              <table id="home-runs-table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Home Runs</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <p class="loading-indicator">Loading home run leaders...</p>
+            </div>
+          </div>
+          <div class="stat-box">
+            <h4>ERA</h4>
+            <div class="leader-info">
+              <table id="era-stats-table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>ERA</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <p class="loading-indicator">Loading ERA leaders...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        &copy; {% now "Y" %} Anderson Levasseur and Alexander Taylor. All rights
+        reserved.
+      </p>
+    </footer>
+  </body>
 </html>
