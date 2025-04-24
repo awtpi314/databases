@@ -38,6 +38,7 @@ def total_salary(players, year):
             total += player_season.salary
     return total
 
+
 @register.filter
 def get_item(dictionary, key):
     return dictionary.get(key, None)

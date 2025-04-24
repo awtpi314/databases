@@ -7,13 +7,41 @@
       type="text/css"
       href="{% static 'mlb_data/css/styles.css' %}"
     />
-    <link rel="icon" type="image/png" href="{% static 'mlb_data/images/favicon-96x96.png' %}" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="{% static 'mlb_data/images/favicon.svg' %}" />
-    <link rel="shortcut icon" href="{% static 'mlb_data/images/favicon.ico' %}" />
-    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'mlb_data/images/apple-touch-icon.png' %}" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="{% static 'mlb_data/images/favicon-96x96.png' %}"
+      sizes="96x96"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="{% static 'mlb_data/images/favicon.svg' %}"
+    />
+    <link
+      rel="shortcut icon"
+      href="{% static 'mlb_data/images/favicon.ico' %}"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="{% static 'mlb_data/images/apple-touch-icon.png' %}"
+    />
     <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
     <title>MLB Data</title>
     <script src="{% static 'mlb_data/js/main-page.js' %}" defer></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.2.1/tablesort.min.js"
+      integrity="sha512-F/gIMdDfda6OD2rnzt/Iyp2V9JLHlFQ+EUyixDg9+rkwjqgW1snpkpx7FD5FV1+gG2fmFj7I3r6ReQDUidHelA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.2.1/sorts/tablesort.number.min.js"
+      integrity="sha512-dRD755QRxlybm0h3LXXIGrFcjNakuxW3reZqnPtUkMv6YsSWoJf+slPjY5v4lZvx2ss+wBZQFegepmA7a2W9eA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
   </head>
   <body>
     <header>
@@ -76,7 +104,7 @@
       </section>
 
       <section class="quick-stats">
-        <h3>League Leaders</h3>
+        <h3>2023 League Leaders</h3>
         <div class="stats-container">
           <div class="stat-box">
             <h4>Batting Average</h4>
@@ -126,6 +154,36 @@
             </div>
           </div>
         </div>
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            const table = document.getElementById("era-stats-table");
+            new Tablesort(table, {
+              descending: true,
+              compare: function (a, b) {
+                return parseFloat(a) - parseFloat(b);
+              },
+            });
+            const table2 = document.getElementById("home-runs-table");
+            new Tablesort(table2, {
+              descending: true,
+              compare: function (a, b) {
+                return parseInt(a) - parseInt(b);
+              },
+            });
+            const table3 = document.getElementById("batting-stats-table");
+            new Tablesort(table3, {
+              descending: true,
+              compare: function (a, b) {
+                return parseFloat(a) - parseFloat(b);
+              },
+            });
+          });
+        </script>
+        <style>
+          th {
+            cursor: pointer;
+          }
+        </style>
       </section>
     </main>
 

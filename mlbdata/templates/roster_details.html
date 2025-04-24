@@ -29,6 +29,31 @@
     />
     <link rel="manifest" href="{% static 'mlb_data/site.webmanifest' %}" />
     <title>MLB Data - {{team_season.year}} {{team.name}} Roster</title>
+    <style>
+      th {
+        cursor: pointer;
+      }
+    </style>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.2.1/tablesort.min.js"
+      integrity="sha512-F/gIMdDfda6OD2rnzt/Iyp2V9JLHlFQ+EUyixDg9+rkwjqgW1snpkpx7FD5FV1+gG2fmFj7I3r6ReQDUidHelA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.2.1/sorts/tablesort.number.min.js"
+      integrity="sha512-dRD755QRxlybm0h3LXXIGrFcjNakuxW3reZqnPtUkMv6YsSWoJf+slPjY5v4lZvx2ss+wBZQFegepmA7a2W9eA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var tables = document.querySelectorAll("table");
+        tables.forEach(function (table) {
+          new Tablesort(table);
+        });
+      });
+    </script>
   </head>
   <body>
     <header>
@@ -56,18 +81,22 @@
         <div class="feature-card">
           <h3>Team Information</h3>
           <table>
-            <tr>
-              <th>Name</th>
-              <th>League</th>
-              <th>Year</th>
-              <th>Payroll</th>
-            </tr>
-            <tr>
-              <td>{{ team.name }}</td>
-              <td>{{ team.league }}</td>
-              <td>{{ team_season.year }}</td>
-              <td>${{ payroll }}</td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>League</th>
+                <th>Year</th>
+                <th>Payroll</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ team.name }}</td>
+                <td>{{ team.league }}</td>
+                <td>{{ team_season.year }}</td>
+                <td>${{ payroll }}</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
